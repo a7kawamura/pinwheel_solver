@@ -8,8 +8,16 @@
 
 namespace pinwheel {
 
-// using rational = boost::rational<long long>; // 不等号の正確な判定のため有理数で計算するが、本プログラムで用いる周期列は各要素が下述の max_period 以下であり、それらの最小公倍数は数億程度なので、分母・分子は long long で十分
-using rational = boost::rational<boost::multiprecision::cpp_int>; // 任意桁数（多倍長整数）を使った有理数型
+using cpp_int = boost::multiprecision::number<
+  boost::multiprecision::backends::cpp_int_backend<
+    256, 256,
+    boost::multiprecision::signed_magnitude,
+    boost::multiprecision::unchecked,
+    void
+  >
+>;
+using rational = boost::rational<cpp_int>;
+// using rational = boost::rational<boost::multiprecision::cpp_int>; // 任意桁数（多倍長整数）を使った有理数型
   
 ////////////////////////////////////////////////////////////////////////////////
 // 周期列
@@ -30,7 +38,7 @@ public:
 };
 
 inline rational density (const PinwheelInstance& c) { 
-  rational sum = 0;
+  rational sum(0);
   for (const auto& a : c.periods) sum += rational(1, a);
   return sum; 
 }

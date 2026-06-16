@@ -15,7 +15,7 @@ const rational bound_on_modified_density = rational(5, 6) + rational(1, 2 * half
 // min_addable(r): 正の有理数 r に対し、D'(e) < r なる最小の周期 e を返す。但しそれが 2 * half_theta 以上なら 2 * half_theta を返す。
 unsigned int min_addable(rational r) {
   if (r < rational(1, 2 * half_theta)) return 2 * half_theta;
-  unsigned int e = static_cast<unsigned int>(r.denominator() / r.numerator()) + 1;
+  unsigned int e = (r.denominator() / r.numerator()).convert_to<unsigned int>() + 1;
   return e > half_theta ? e - 1 : e; 
 }
 

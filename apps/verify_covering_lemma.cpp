@@ -14,7 +14,7 @@ const rational bound_on_modified_density = rational(126449978, 100000000) - rati
 
 // modified_density(c): 周期列 c の密度、但し half_theta を超える各周期から 1 を減じて求めたもの。
 rational modified_density (const PinwheelInstance& c) { 
-  rational sum = 0;
+  rational sum(0);
   for (const auto& a : c.periods) sum += rational(1, a - ((a > half_theta) ? 1 : 0));
   return sum; 
 }

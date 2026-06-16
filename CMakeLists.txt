@@ -24,3 +24,8 @@ target_link_libraries(packing PRIVATE OpenMP::OpenMP_CXX Boost::boost)
 # 2. 被覆型 (covering) の実行ファイル設定
 add_executable(covering apps/verify_covering_lemma.cpp)
 target_link_libraries(covering PRIVATE OpenMP::OpenMP_CXX Boost::boost)
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    target_compile_options(packing PRIVATE -Wno-stringop-overflow -Wno-stringop-overread)
+    target_compile_options(covering PRIVATE -Wno-stringop-overflow -Wno-stringop-overread)
+endif()
