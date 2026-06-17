@@ -10,6 +10,11 @@ endif()
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# コンパイラの警告レベルを最大(Wall, Wextra)にし、さらに警告を致命的エラー(Werror)に格上げする
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    add_compile_options(-Wall -Wextra -Werror)
+endif()
+
 # 外部ライブラリ（OpenMP, Boost）の自動検出
 find_package(OpenMP REQUIRED)
 find_package(Boost REQUIRED)
@@ -25,6 +30,7 @@ target_link_libraries(packing PRIVATE OpenMP::OpenMP_CXX Boost::boost)
 add_executable(covering apps/verify_covering_lemma.cpp)
 target_link_libraries(covering PRIVATE OpenMP::OpenMP_CXX Boost::boost)
 
+# g++ 11以上における std::vector コピー時のコンパイラ誤検知警告を抑制する設定
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     target_compile_options(packing PRIVATE -Wno-stringop-overflow -Wno-stringop-overread)
     target_compile_options(covering PRIVATE -Wno-stringop-overflow -Wno-stringop-overread)

@@ -1,6 +1,6 @@
 # 輪番割当問題（詰込型・被覆型）
 
-輪番割当（Pinwheel Scheduling）問題における周期列の詰込割当可能性（packing schedulability）と被覆割当可能性（covering schedulability）を判定する高速なC\+\+ソルバーです。密度予想の検証を目的として開発されました。
+輪番割当（Pinwheel Scheduling）問題における周期列の詰込割当可能性（packing schedulability）と被覆割当可能性（covering schedulability）を判定するソルバーです。密度予想の検証を目的として開発されました。
 
 ## 📁 ディレクトリ構成
 
@@ -20,8 +20,8 @@
 
 ## 🛠️ ビルドと実行方法
 必要な環境
-- C\+\+20（またはC\+\+17）に対応したコンパイラ（g\+\+ 10以上など）
-- CMake（3.10以上）
+- C\+\+20に対応したコンパイラ（g++ 11.4 以上、または g++ 13 以上を推奨）
+- CMake（3.20以上）
 - Boost ライブラリ（Multiprecision, Rational）
 - OpenMP（並列処理用）
 
