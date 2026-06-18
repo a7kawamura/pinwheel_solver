@@ -62,6 +62,34 @@ std::variant<Schedule, bool> find_cycle (const PinwheelInstance& c, std::atomic<
   return find_cycle_sub<Policy>(initial_state, dead, visited, path, done);
 }
 
+struct SolveResult {
+  PinwheelInstance instance;
+  Schedule schedule;
+};
+
+// solve_instances(cs): cs の各周期列の割当可能性を並列に調べる。割当可能なものが一つでも見つかったらその周期列と日割の組を返す。見つからなければstd::nulloptを返す。
+template <typename Policy>
+std::optional<SolveResult> solve_instances(const std::vector<PinwheelInstance>& cs) {
+  std::atomic<bool> done{false};
+  std::optional<SolveResult> result = std::nullopt;
+
+#pragma omp parallel for schedule(dynamic)
+  for (size_t i = 0; i < cs.size(); ++i) {
+    if (done) continue;
+    auto s = find_cycle<Policy>(cs[i], done);
+    if (std::holds_alternative<Schedule>(s)) {
+#pragma omp critical
+      {
+	if (not done) {
+	  result = SolveResult{cs[i], std::get<Schedule>(s)};
+	  done = true;
+	}
+      }
+    }
+  }
+  return result;
+}
+
 // all_folds(c): 周期列 c の割当可能性を調べるために調べるべき周期列集合。c が割当可能であるには、all_folds(c) の周期列のうち一つ以上が割当可能であることが必要十分。ここでは c, fold(c), fold(fold(c)), ... のうち密度 1 以下（詰込型）ないし 1 以上（被覆型）のもの全体としている。
 template <typename Policy>
 std::vector<PinwheelInstance> all_folds (const PinwheelInstance& c) {
@@ -81,29 +109,15 @@ bool check_one (const PinwheelInstance& c, std::unordered_map<PinwheelInstance, 
 
   // 【進捗ログ】現在どの周期列を検証しているかリアルタイムで表示
   std::cout << "Checking: " << c.to_string() << " (folds: " << cs.size() << ")" << std::endl;
-  
-  std::atomic<bool> done{false};
 
-// cs の各要素を並列に調べる。或るスレッドが解を見つけて共有変数 done を真にすると、他のスレッドは中断して終了する。
-#pragma omp parallel for schedule(dynamic)
-  for (size_t i = 0; i < cs.size(); ++i) {
-    if (done) continue; 
-    
-    PinwheelInstance d = cs[i];
-    std::variant<Schedule, bool> s = find_cycle<Policy>(d, done);
-    
-    if (std::holds_alternative<Schedule>(s)) {
-#pragma omp critical // 共通の known_schedules への書き込みは排他制御する
-      {
-        if (not done) {
-          known_schedules[d] = std::get<Schedule>(s); 
-          done = true; 
-        } 
-      }
-    }
+  auto result = solve_instances<Policy>(cs);
+  if (result) {
+    known_schedules[result->instance] = result->schedule;
+    std::cout << "FOUND: " << result->instance.to_string() << " with schedule: " << result->schedule.to_string() << std::endl;
+    return true;
   }
-  if (not done) std::cout << "UNSCHEDULABLE: " << c.to_string() << std::endl;
-  return done;
+  std::cout << "UNSCHEDULABLE: " << c.to_string() << std::endl;
+  return false;
 }
 
 } // namespace pinwheel
