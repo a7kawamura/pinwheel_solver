@@ -1,43 +1,91 @@
 # 輪番割当問題（詰込型・被覆型）
 
-輪番割当（Pinwheel Scheduling）問題における周期列の詰込割当可能性（packing schedulability）と被覆割当可能性（covering schedulability）を判定するソルバーです。密度予想の検証を目的として開発されました。
+輪番割当（Pinwheel Scheduling）問題における周期列の詰込割当可能性（packing schedulability）と被覆割当可能性（covering schedulability）を判定するソルバです。密度予想の証明を目的として開発されました。
 
-## 📁 ディレクトリ構成
+個別の周期列に対して対話的に日割（schedule）を探索するソルバと、密度予想を導く補題（論文参照）の網羅的な自動検証プログラムの2つの機能を備えています。
 
-```text
-.
-├── include/
-│   └── pinwheel/
-│       ├── types.hpp      # 有理数型（Boost）や周期型の定義
-│       ├── policies.hpp   # 詰込/被覆の各探索ポリシー
-│       └── solver.hpp     # 探索コアロジック
-├── apps/
-│   ├── verify_packing_lemma.cpp  # 詰込に関する補題の検証プログラム
-│   └── verify_covering_lemma.cpp # 被覆に関する補題の検証プログラム
-├── CMakeLists.txt
-└── README.md
-```
+## 🛠 プロジェクトの構造
 
-## 🛠️ ビルドと実行方法
-必要な環境
+計算ロジック（コアエンジン）と、用途に応じた実行エンドポイント（`apps/`）に分かれています。
+
+* **`include/pinwheel/`**: コアライブラリ
+  * `types.hpp`: 周期列や状態や日割などのデータ構造定義。
+  * `policies.hpp`: 詰込・被覆の各探索ポリシー定義。
+  * `solver.hpp`: 閉路検出により割当可能性を調べる探索器の本体。
+  * `solver_cli.hpp`: 対話型ソルバのためのインタフェース。
+
+* **`apps/`**: 実行ファイル（アプリケーション）のソースコード
+  * `packing_solver.cpp`: 詰込型問題のソルバ。
+  * `covering_solver.cpp`: 被覆型問題のソルバ。
+  * `verify_packing_lemma.cpp`: 詰込型の密度予想に関する補題の検証プログラム。
+  * `verify_covering_lemma.cpp`: 被覆型の密度予想に関する補題の検証プログラム。
+
+* `CMakeLists.txt`
+* `README.md`
+
+## 💻 ビルド方法
+
+CMake を使ってビルドします。並列処理のために OpenMP を、一部のデータ構造のために Boost ライブラリを使用します。
+
+### 必要な環境
 - C\+\+20に対応したコンパイラ（g++ 11.4 以上、または g++ 13 以上を推奨）
 - CMake（3.20以上）
 - Boost ライブラリ（Multiprecision, Rational）
 - OpenMP（並列処理用）
 
 ### 手順
-ターミナルで以下を実行します。
 
 ```bash
-# 1. ビルドディレクトリの作成と移動
-mkdir build && cd build
-
-# 2. CMakeの実行
+mkdir build
+cd build
 cmake ..
+make -j
+```
 
-# 3. コンパイル
-make
+## 🚀 使い方
 
-# 4. 実行（詰込補題の検証の場合）
-./packing
+ビルドが成功すると、`build/` ディレクトリ内に用途に応じた **4つの実行ファイル** が生成されます。
+
+### 1. 対話型ソルバー（個別問題用）
+
+標準入力から与えられた個例（周期列）に対し、日割を探索して割当可能性を判定し、結果を画面に出力する CLI ツールです。
+
+* **詰込型ソルバーの実行**
+```bash
+./packing_solver
+```
+
+* **被覆型ソルバーの実行**
+```bash
+./covering_solver
+```
+
+#### 💡 入力フォーマットと実行例
+
+ソルバーを起動後、周期列を **スペース区切りの正整数値** として入力し、エンターキーを押してください。
+
+**実行例:**
+
+```text
+> ./packing_solver
+周期列を入力してください (例: 3 4 5): 3 4 5 16 19
+Schedulable via (3 4 5 8)
+Schedule: [3 8 4 3 5 3 4 5]
+```
+
+> ※ `Schedule:` の後ろには、探索によって発見された具体的な日割の循環節（最短のものとは限らない）が出力されます。割当不能な場合は `UNSCHEDULABLE` と表示されます。
+
+### 2. 論文の補題検証ツール（網羅探索用）
+
+論文の補題に基づき、特定の条件を満たす周期列のセットに対して割当可能性を網羅的に検証します。探索には OpenMP によるマルチスレッド並列処理が適用されます。
+
+* **詰込型補題の検証**
+```bash
+./verify_packing_lemma
+```
+
+
+* **被覆型補題の検証**
+```bash
+./verify_covering_lemma
 ```

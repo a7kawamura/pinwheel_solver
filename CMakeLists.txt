@@ -22,7 +22,14 @@ find_package(Boost REQUIRED)
 # ヘッダーファイルの検索パス（include ディレクトリ）を指定
 include_directories(include)
 
-# 補題検証プログラム
+# 1. 対話型ソルバー
+add_executable(packing_solver apps/packing_solver.cpp)
+target_link_libraries(packing_solver PRIVATE OpenMP::OpenMP_CXX Boost::boost)
+
+add_executable(covering_solver apps/covering_solver.cpp)
+target_link_libraries(covering_solver PRIVATE OpenMP::OpenMP_CXX Boost::boost)
+
+# 2. 補題検証プログラム
 add_executable(verify_packing_lemma apps/verify_packing_lemma.cpp)
 target_link_libraries(verify_packing_lemma PRIVATE OpenMP::OpenMP_CXX Boost::boost)
 
