@@ -13,7 +13,7 @@ const unsigned int max_period = 2 * half_theta - 1;
 const rational bound_on_modified_density = rational(5, 6) + rational(1, 2 * half_theta);
 
 // min_addable(r): 正の有理数 r に対し、D'(e) < r なる最小の周期 e を返す。但しそれが 2 * half_theta 以上なら 2 * half_theta を返す。
-unsigned int min_addable(rational r) {
+unsigned int min_addable (rational r) {
   if (r < rational(1, 2 * half_theta)) return 2 * half_theta;
   unsigned int e = (r.denominator() / r.numerator()).convert_to<unsigned int>() + 1;
   return e > half_theta ? e - 1 : e; 
@@ -26,7 +26,7 @@ void check_all (const PinwheelInstance& c, unsigned int a, std::unordered_map<Pi
   rational next_r = r - rational(1, a >= half_theta? a + 1 : a);
   unsigned int e = min_addable(next_r);
   if (e > max_period) {
-    if (minimal) check_one<PackingPolicy>(ca, known_schedules);
+    if (minimal) find_and_cache<PackingPolicy>(ca, known_schedules);
   } else if (e >= a) check_all(ca, e, known_schedules, true, next_r);
   else check_all(ca, a, known_schedules, false, next_r);
   if (a < max_period) check_all(c, a + 1, known_schedules, false, r);

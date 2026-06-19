@@ -10,11 +10,12 @@
 
 namespace pinwheel {
 
-////////////////////////////////////////////////////////////////////////////////
-// 周期列 c が詰込割当可能か否かを、状態グラフが閉路をもつか調べることで判定
-////////////////////////////////////////////////////////////////////////////////
+struct SolveResult {
+  PinwheelInstance instance;
+  Schedule schedule;
+};
 
-// find_cycle_sub(v, dead, visited, done): 
+// find_cycle_sub(v, dead, visited, path, done): 
 // 実行開始時における約束として、dead に属するどの状態からも閉路に到達不能であり、visited は初期状態から v への経路（但し初期状態から i 番目の状態を i へ写す写像として表す）、path はそれに対応する（有限の）日割である。
 // v から閉路に到達可能であるとき、その閉路を返す。さもなくば、v から到達可能な状態をすべて dead に加えた上で、真を返す。但し計算中に done が真になったことに気づくと中断して偽を返す。
 template <typename Policy>
@@ -62,14 +63,9 @@ std::variant<Schedule, bool> find_cycle (const PinwheelInstance& c, std::atomic<
   return find_cycle_sub<Policy>(initial_state, dead, visited, path, done);
 }
 
-struct SolveResult {
-  PinwheelInstance instance;
-  Schedule schedule;
-};
-
 // solve_instances(cs): cs の各周期列の割当可能性を並列に調べる。割当可能なものが一つでも見つかったらその周期列と日割の組を返す。見つからなければstd::nulloptを返す。
 template <typename Policy>
-std::optional<SolveResult> solve_instances(const std::vector<PinwheelInstance>& cs) {
+std::optional<SolveResult> solve_instances (const std::vector<PinwheelInstance>& cs) {
   std::atomic<bool> done{false};
   std::optional<SolveResult> result = std::nullopt;
 
@@ -100,10 +96,10 @@ std::vector<PinwheelInstance> all_folds (const PinwheelInstance& c) {
   return r;
 }
 
-// check_one(c, known_schedules): 写像 known_schedules に書かれているのは、既知の周期列と正しい日割の組であるとする。このとき、周期列 c は割当可能か調べ、真偽を返す。これを all_folds(c) の各周期列の割当可能性を並列に調べることで行う。まず known_schedules から直ちに判るか調べる。判らなければ、並列に find_cycle で調べる。割当可能なら、割当できた周期列とその日割とを表示し、known_schedules に記入する。割当不能なら UNSCHEDULABLE と表示する。
+// find_and_cache(c, known_schedules): 写像 known_schedules に書かれているのは、既知の周期列と正しい日割の組であるとする。このとき、周期列 c は割当可能か調べ、真偽を返す。これを all_folds(c) の各周期列の割当可能性を並列に調べることで行う。まず known_schedules から直ちに判るか調べる。判らなければ、並列に find_cycle で調べる。割当可能なら、割当できた周期列とその日割とを表示し、known_schedules に記入する。割当不能なら UNSCHEDULABLE と表示する。
 // #pragma omp parallel for を使用し、利用可能な最大スレッド数を活かしながら、各スレッドへ動的に周期列の探索タスクを割り振る。
 template <typename Policy>
-bool check_one (const PinwheelInstance& c, std::unordered_map<PinwheelInstance, Schedule>& known_schedules) {
+bool find_and_cache (const PinwheelInstance& c, std::unordered_map<PinwheelInstance, Schedule>& known_schedules) {
   std::vector<PinwheelInstance> cs = all_folds<Policy>(c);
   for (const auto& d : cs) if (known_schedules.contains(d)) return true;
 
