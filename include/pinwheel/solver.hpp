@@ -1,8 +1,9 @@
 #pragma once
 #include "pinwheel/types.hpp"
-#include <unordered_set>  // set から unordered_set へ変更 (高速化)
-#include <unordered_map>  // map から unordered_map へ変更 (高速化)
+#include <unordered_set>
+#include <unordered_map>
 #include <variant>
+#include <optional>
 #include <atomic>
 #include <iostream>
 #include <vector>
