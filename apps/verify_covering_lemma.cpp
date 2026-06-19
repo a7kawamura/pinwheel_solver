@@ -24,7 +24,7 @@ void check_all (const PinwheelInstance& c, std::unordered_map<PinwheelInstance, 
   for (unsigned int e = c.periods.empty() ? 3 : c.periods[c.periods.size() - 1]; e <= max_period; e += (e == half_theta - 1 ? 2 : 1)) { // 直前の周期（先頭なら 3）以上、max_period 以下、half_theta 以外の整数を小さい順に
     PinwheelInstance d = c;
     d.periods.push_back(e);
-    if (modified_density(d) >= bound_on_modified_density) find_and_cache<CoveringPolicy>(d, known_schedules); // 実際には find_and_cache する対象を、既知の割当可能な（或いは単に密度条件を満す）周期列から単調性や分割性で得られないものに限ってもよい（実際それにより若干は高速になる）が、簡潔を優先する
+    if (modified_density(d) >= bound_on_modified_density) find_and_cache<CoveringPolicy>(d, known_schedules); // 実際には既知の割当可能な（或いは単に密度条件を満す）周期列から単調性や分割性で得られないものに限ってもよい（実際それにより若干は高速になる）が、簡潔を優先する
     else check_all(d, known_schedules);
   }
 }

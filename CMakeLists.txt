@@ -22,16 +22,15 @@ find_package(Boost REQUIRED)
 # ヘッダーファイルの検索パス（include ディレクトリ）を指定
 include_directories(include)
 
-# 1. 詰込型 (packing) の実行ファイル設定
-add_executable(packing apps/verify_packing_lemma.cpp)
-target_link_libraries(packing PRIVATE OpenMP::OpenMP_CXX Boost::boost)
+# 補題検証プログラム
+add_executable(verify_packing_lemma apps/verify_packing_lemma.cpp)
+target_link_libraries(verify_packing_lemma PRIVATE OpenMP::OpenMP_CXX Boost::boost)
 
-# 2. 被覆型 (covering) の実行ファイル設定
-add_executable(covering apps/verify_covering_lemma.cpp)
-target_link_libraries(covering PRIVATE OpenMP::OpenMP_CXX Boost::boost)
+add_executable(verify_covering_lemma apps/verify_covering_lemma.cpp)
+target_link_libraries(verify_covering_lemma PRIVATE OpenMP::OpenMP_CXX Boost::boost)
 
 # g++ 11以上における std::vector コピー時のコンパイラ誤検知警告を抑制する設定
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    target_compile_options(packing PRIVATE -Wno-stringop-overflow -Wno-stringop-overread)
-    target_compile_options(covering PRIVATE -Wno-stringop-overflow -Wno-stringop-overread)
+    target_compile_options(verify_packing_lemma PRIVATE -Wno-stringop-overflow -Wno-stringop-overread)
+    target_compile_options(verify_covering_lemma PRIVATE -Wno-stringop-overflow -Wno-stringop-overread)
 endif()

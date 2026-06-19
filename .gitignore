@@ -1,32 +1,21 @@
-# ====================================================================
-# ピンホイールソルバー用の .gitignore
-# ====================================================================
-
 # 1. CMakeのビルド出力ディレクトリ
 /build/
 /cmake-build-debug/
 /cmake-build-release/
 /out/
 
-# 2. コンパイルによって生成される実行ファイル（バイナリ）
-/packing
-/covering
-*.exe
-*.out
-*.app
-
-# 3. OSが勝手に生成する隠しゴミファイル
+# 2. OSが勝手に生成する隠しゴミファイル
 .DS_Store
 Thumbs.db
 
-# 4. IDEの設定（VS CodeやCLionなど）
+# 3. IDEの設定（VS CodeやCLionなど）
 /.vscode/
 /.idea/
 /CMakeSettings.json
 *.suo
 *.user
 
-# 5. Emacs関連の一時ファイル
+# 4. Emacs関連の一時ファイル
 *~
 \#*#
 .#*
