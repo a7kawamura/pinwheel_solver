@@ -92,6 +92,13 @@ std::optional<SolveResult> solve_instances (const std::vector<PinwheelInstance>&
   return result;
 }
 
+
+// GCC13の誤検知警告（-Warray-boundsと-Wstringop-overflow）を無視
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Warray-bounds"
+#pragma GCC diagnostic ignored "-Wstringop-overflow"
+#pragma GCC diagnostic ignored "-Wstringop-overread"
+
 // all_folds(c): 周期列 c の割当可能性を調べるために調べるべき周期列集合。c が割当可能であるには、all_folds(c) の周期列のうち一つ以上が割当可能であることが必要十分。ここでは c, fold(c), fold(fold(c)), ... のうち密度 1 以下（詰込型）ないし 1 以上（被覆型）のもの全体としている。
 template <typename Policy>
 std::vector<PinwheelInstance> all_folds (const PinwheelInstance& c) {
@@ -101,6 +108,8 @@ std::vector<PinwheelInstance> all_folds (const PinwheelInstance& c) {
   r.push_back(c);
   return r;
 }
+
+#pragma GCC diagnostic pop
 
 // find_and_cache(c, known_schedules): 写像 known_schedules に書かれているのは、既知の周期列と正しい日割の組であるとする。このとき、周期列 c は割当可能か調べ、真偽を返す。これを all_folds(c) の各周期列の割当可能性を並列に調べることで行う。まず known_schedules から直ちに判るか調べる。判らなければ、solve_instances を呼んで調べる。割当可能なら、割当できた周期列とその日割とを表示し、known_schedules に記入する。割当不能なら UNSCHEDULABLE と表示する。
 template <typename Policy>
