@@ -35,9 +35,3 @@ target_link_libraries(verify_packing_lemma PRIVATE OpenMP::OpenMP_CXX Boost::boo
 
 add_executable(verify_covering_lemma apps/verify_covering_lemma.cpp)
 target_link_libraries(verify_covering_lemma PRIVATE OpenMP::OpenMP_CXX Boost::boost)
-
-# g++ 11以上における std::vector コピー時のコンパイラ誤検知警告を抑制する設定
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    target_compile_options(verify_packing_lemma PRIVATE -Wno-stringop-overflow -Wno-stringop-overread)
-    target_compile_options(verify_covering_lemma PRIVATE -Wno-stringop-overflow -Wno-stringop-overread)
-endif()
