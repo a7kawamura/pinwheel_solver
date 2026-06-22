@@ -42,6 +42,11 @@ cmake ..
 make -j
 ```
 
+#### 💡 **Mac環境での注意点 (OpenMPエラーが出る場合)**
+Mac (Homebrew) 環境で OpenMP が見つからないエラーが出た場合は、以下のように明示的にパスを指定して `cmake` を実行してください。
+* Intel Mac: `cmake -DOpenMP_ROOT=/usr/local/opt/libomp ..`
+* Apple Silicon Mac: `cmake -DOpenMP_ROOT=/opt/homebrew/opt/libomp ..`
+
 ## 🚀 使い方
 
 ビルドが成功すると、`build/` ディレクトリ内に用途に応じた **4つの実行ファイル** が生成されます。
