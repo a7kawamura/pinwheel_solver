@@ -129,4 +129,26 @@ bool find_and_cache (const PinwheelInstance& c, std::unordered_map<PinwheelInsta
   return false;
 }
 
+// check_one(c, known_schedules): 写像 known_schedules に書かれているのは、既知の周期列と正しい日割の組であるとする。このとき、周期列 c は割当可能か調べ、真偽を返す。これを all_folds(c) の各周期列の割当可能性を並列に調べることで行う。まず known_schedules から直ちに判るか調べる。判らなければ、並列に find_cycle で調べる。割当可能なら、割当できた周期列とその日割とを表示し、known_schedules に記入する。割当不能なら UNSCHEDULABLE と表示する。
+template <typename Policy>
+bool check_one (const PinwheelInstance& c, std::unordered_map<PinwheelInstance, Schedule>& known_schedules, std::unordered_set<PinwheelInstance>& impossible_schedules, std::vector<PinwheelInstance>& remain_schedules) {
+  if (impossible_schedules.contains(c)) return false;
+  std::vector<PinwheelInstance> cs = all_folds<Policy>(c);
+  for (const auto& d : cs) if (known_schedules.contains(d)) return true;
+  
+  auto result = solve_instances<Policy>(cs);
+  if (result) {
+    known_schedules[result->instance] = result->schedule;
+    //std::cout << "FOUND: " << result->instance.to_string() << " with schedule: " << result->schedule.to_string() << std::endl;
+    return true;
+  }
+  else{ //cが割当不能ならば remain_schedules にcを格納する。
+    for (const auto& d : cs) impossible_schedules.insert(d);
+    remain_schedules.push_back(c);
+    //sub_skip_count++;
+  }
+  //std::cout << "UNSCHEDULABLE: " << c.to_string() << std::endl;
+  return false;
+}
+
 } // namespace pinwheel
