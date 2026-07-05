@@ -29,8 +29,11 @@ CycleResult find_cycle_sub (
     std::unordered_set<State>& dead, 
     std::unordered_map<State, size_t>& visited, 
     Schedule& path, 
-    std::atomic<bool>& done) 
+    std::atomic<bool>& done,
+    std::atomic<bool>& skipped,
+    bool skip = false) 
 {
+
   if (visited.contains(v)) return Schedule(path.periods.begin() + visited[v], path.periods.end()); // path のうち第 visited[v] 位置以降を出力
   visited[v] = path.periods.size();
   
@@ -48,37 +51,41 @@ CycleResult find_cycle_sub (
     if (done) return Interrupted();
     
     path.periods.push_back(v.q[j].second);
-    CycleResult r = find_cycle_sub<Policy>(w, dead, visited, path, done);
+    CycleResult r = find_cycle_sub<Policy>(w, dead, visited, path, done, skipped, skip);
     path.periods.pop_back();
     
     if (std::holds_alternative<Schedule>(r) or std::holds_alternative<Interrupted>(r)) return r; // w から到達可能な閉路が見つかった場合はその閉路を（v から到達可能な閉路として）返すし、計算中断ならば中断と返す
   }
   dead.insert(v);
   visited.erase(v);
+  if(skip && (int)(dead.size())>0){
+      skipped.store(true);
+      return Interrupted();
+  }
   return Unschedulable();
 }
 
 // find_cycle(c, done): 状態グラフ上の閉路検出の方法により、周期列 c の割当可能性を判定する。割当可能なら日割の一つを返し、不能なら Unschedulable() を返す。計算中に done が真になると中断して Interrupted() を返す。
 template <typename Policy>
-CycleResult find_cycle (const PinwheelInstance& c, std::atomic<bool>& done) {
+CycleResult find_cycle (const PinwheelInstance& c, std::atomic<bool>& done, std::atomic<bool>& skipped, bool skip = false) {
   std::unordered_set<State> dead{};
   std::unordered_map<State, size_t> visited{};
   State initial_state = Policy::create_initial_state(c);
   Schedule path{};
-  return find_cycle_sub<Policy>(initial_state, dead, visited, path, done);
+  return find_cycle_sub<Policy>(initial_state, dead, visited, path, done, skipped, skip);
 }
 
 // solve_instances(cs): cs の各周期列の割当可能性を並列に調べる。割当可能なものが一つでも見つかったらその周期列と日割の組を返す。見つからなければstd::nulloptを返す。
 // #pragma omp parallel for を使用し、利用可能な最大スレッド数を活かしながら、各スレッドへ動的に周期列の探索タスクを割り振る。
 template <typename Policy>
-std::optional<SolveResult> solve_instances (const std::vector<PinwheelInstance>& cs) {
+std::optional<SolveResult> solve_instances (const std::vector<PinwheelInstance>& cs, std::atomic<bool>& skipped, bool skip = false) {
   std::atomic<bool> done{false};
   std::optional<SolveResult> result = std::nullopt;
 
 #pragma omp parallel for schedule(dynamic)
   for (size_t i = 0; i < cs.size(); ++i) {
     if (done) continue;
-    auto s = find_cycle<Policy>(cs[i], done);
+    auto s = find_cycle<Policy>(cs[i], done, skipped, skip);
     if (std::holds_alternative<Schedule>(s)) {
 #pragma omp critical
       {
@@ -113,41 +120,35 @@ std::vector<PinwheelInstance> all_folds (const PinwheelInstance& c) {
 
 // find_and_cache(c, known_schedules): 写像 known_schedules に書かれているのは、既知の周期列と正しい日割の組であるとする。このとき、周期列 c は割当可能か調べ、真偽を返す。これを all_folds(c) の各周期列の割当可能性を並列に調べることで行う。まず known_schedules から直ちに判るか調べる。判らなければ、solve_instances を呼んで調べる。割当可能なら、割当できた周期列とその日割とを表示し、known_schedules に記入する。割当不能なら UNSCHEDULABLE と表示する。
 template <typename Policy>
-bool find_and_cache (const PinwheelInstance& c, std::unordered_map<PinwheelInstance, Schedule>& known_schedules) {
+bool find_and_cache (const PinwheelInstance& c, std::unordered_map<PinwheelInstance, Schedule>& known_schedules, std::unordered_set<PinwheelInstance>* impossible_schedules = nullptr, bool fac_log = true, bool skip = false) {
+  if(impossible_schedules != nullptr){  
+    if (impossible_schedules->contains(c)) return false;
+  }
   std::vector<PinwheelInstance> cs = all_folds<Policy>(c);
   for (const auto& d : cs) if (known_schedules.contains(d)) return true;
   // 【進捗ログ】現在どの周期列を検証しているかリアルタイムで表示
-  std::cout << "Checking: " << c.to_string() << " (folds: " << cs.size() << ")" << std::endl;
+  if(fac_log) {
+    std::cout << "Checking: " << c.to_string() << " (folds: " << cs.size() << ")" << std::endl;
+  }
 
-  auto result = solve_instances<Policy>(cs);
+  std::atomic<bool> skipped{false};
+  auto result = solve_instances<Policy>(cs,skipped,skip);
   if (result) {
     known_schedules[result->instance] = result->schedule;
-    std::cout << "FOUND: " << result->instance.to_string() << " with schedule: " << result->schedule.to_string() << std::endl;
+    if(fac_log) {
+      std::cout << "FOUND: " << result->instance.to_string() << " with schedule: " << result->schedule.to_string() << std::endl;
+    }
     return true;
   }
-  std::cout << "UNSCHEDULABLE: " << c.to_string() << std::endl;
-  return false;
-}
-
-// check_one(c, known_schedules): 写像 known_schedules に書かれているのは、既知の周期列と正しい日割の組であるとする。このとき、周期列 c は割当可能か調べ、真偽を返す。これを all_folds(c) の各周期列の割当可能性を並列に調べることで行う。まず known_schedules から直ちに判るか調べる。判らなければ、並列に find_cycle で調べる。割当可能なら、割当できた周期列とその日割とを表示し、known_schedules に記入する。割当不能なら UNSCHEDULABLE と表示する。
-template <typename Policy>
-bool check_one (const PinwheelInstance& c, std::unordered_map<PinwheelInstance, Schedule>& known_schedules, std::unordered_set<PinwheelInstance>& impossible_schedules, std::vector<PinwheelInstance>& remain_schedules) {
-  if (impossible_schedules.contains(c)) return false;
-  std::vector<PinwheelInstance> cs = all_folds<Policy>(c);
-  for (const auto& d : cs) if (known_schedules.contains(d)) return true;
-  
-  auto result = solve_instances<Policy>(cs);
-  if (result) {
-    known_schedules[result->instance] = result->schedule;
-    //std::cout << "FOUND: " << result->instance.to_string() << " with schedule: " << result->schedule.to_string() << std::endl;
-    return true;
+  if(impossible_schedules != nullptr && !skipped.load()){
+    for (const auto& d : cs) impossible_schedules->insert(d);
   }
-  else{ //cが割当不能ならば remain_schedules にcを格納する。
-    for (const auto& d : cs) impossible_schedules.insert(d);
-    remain_schedules.push_back(c);
-    //sub_skip_count++;
+  if(fac_log) {
+    std::cout << "UNSCHEDULABLE: " << c.to_string() << "\n";
   }
-  //std::cout << "UNSCHEDULABLE: " << c.to_string() << std::endl;
+  if(skip){
+    std::cout << "SKIPPED: " << c.to_string() << "\n";
+  }
   return false;
 }
 

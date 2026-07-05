@@ -35,3 +35,6 @@ target_link_libraries(verify_packing_lemma PRIVATE OpenMP::OpenMP_CXX Boost::boo
 
 add_executable(verify_covering_lemma apps/verify_covering_lemma.cpp)
 target_link_libraries(verify_covering_lemma PRIVATE OpenMP::OpenMP_CXX Boost::boost)
+
+add_executable(verify_unfold_lemma apps/verify_unfold_lemma.cpp)
+target_link_libraries(verify_unfold_lemma PRIVATE OpenMP::OpenMP_CXX Boost::boost)

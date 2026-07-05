@@ -26,7 +26,8 @@ void run_solver() {
   }
 
   // 探索の実行
-  auto result = solve_instances<Policy>(all_folds<Policy>(PinwheelInstance(p)));
+  std::atomic<bool> skipped{false};
+  auto result = solve_instances<Policy>(all_folds<Policy>(PinwheelInstance(p)),skipped);
 
   if (result) {
     std::cout << "Schedulable via " << result->instance.to_string() << std::endl;
