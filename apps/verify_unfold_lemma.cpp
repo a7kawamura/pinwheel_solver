@@ -5,19 +5,21 @@
 
 using namespace pinwheel;
 
+//fac_log は、find_and_cache 内の出力の有無を表すbool値。
+//case_stat は、check_sub のたびに、その時点での調査している周期列、known_schedules, impossible_schedules のサイズ、および L_case_count, R_case_count の内容を出力するかを表すbool値。
+//evidence は、main の最後に根拠となる周期列と日割の組を表示するかを表すbool値。
+//L_case_count, R_case_count には、割当可能とわかった周期列の個数と割当不能とわかった周期列の個数を、対応する theta の値ごとに分けて記録する。
 const bool fac_log = false;
 const bool case_stat = true;
 const bool evidence = false;
-const bool detail = false;
-const bool unfold_case_count = false;
+const unsigned int max_skip_theta = 10;
 std::map<int, int> L_case_count;
 std::map<int, int> R_case_count;
 
-// 補題の主張は、以下の定数を使って「max_period 以下の自然数からなる任意の PinwheelInstance c は、もし D'(c) ＜ bound_on_modified_density ならば詰込割当可能」。但し D' は、half_theta 以上の各周期に 1 を加えて求めた密度（論文参照）。以下ではこの補題を確かめる。
+// 補題の主張は、以下の定数を使って「2*min_period 以上の偶数 φ であって、次の条件を満すようなものが存在する。min_period 以上 min_theta 未満の自然数からなる任意の PinwheelInstance c は、もし D'(c) ＜ M + 1/{min_theta} ならば、c を φ まで unfold し続けて得られる周期列の木の葉はすべて詰込割当可能」。但し D' は、half_theta 以上の各周期に 1 を加えて求めた密度（論文参照）。以下ではこの補題を確かめる。
 const rational M = rational(5,6); //目標値(0.84など)
 const unsigned int min_period = 1;
 const unsigned int min_half_theta = std::max(2U,min_period);
-const unsigned int max_skip_theta = 10;
 // const unsigned int min_half_theta = 11;
 
 rational modified_density (const PinwheelInstance& c, const unsigned int& half_theta) { // 周期列 c の half_theta 以上の各周期に 1 を加えたものの密度。
@@ -26,9 +28,11 @@ rational modified_density (const PinwheelInstance& c, const unsigned int& half_t
   return sum; 
 }
 
+// check_sub(c, known_schedules, impossible_schedules, half_theta): 周期列 c の割当可能性を調べ、割当可能なら c と日割の組を known_schedules へ記入する。割当不能なら c を impossible_schedules へ記入する。割当不能または探索打切の場合は、unfold'_{theta}(c)　に含まれる周期列すべてについて割当可能性を調べる。
 void check_sub (const PinwheelInstance& c, std::unordered_map<PinwheelInstance, Schedule>& known_schedules, std::unordered_set<PinwheelInstance>& impossible_schedules, const unsigned int& half_theta) {
   //log
   if(case_stat){
+    std::cout << "now:" << c.to_string() << "\n";
     std::cout << "known:" << (int)(known_schedules.size()) << ", impossible:" << (int)(impossible_schedules.size()) << "\n";
     std::cout << "L:";
     for(auto [theta, count]: L_case_count){
@@ -41,10 +45,6 @@ void check_sub (const PinwheelInstance& c, std::unordered_map<PinwheelInstance, 
     }
     std::cout << "\n";
   }
-
-  if(detail) {
-    std::cout << "now:" << c.to_string() << "\n";
-  }
   
   bool skip=false;
   if(half_theta<=max_skip_theta){
@@ -56,11 +56,9 @@ void check_sub (const PinwheelInstance& c, std::unordered_map<PinwheelInstance, 
     return;
   }
   R_case_count[2 * half_theta]++;
-  //cが割当不能ならばunfold(c)に含まれる全ての周期列を調査する
+  //cが割当不能ならばunfold'_{theta}(c,theta)に含まれる全ての周期列を調査する
 
-  //はじめに, cに対して展開操作をして得られる全ての周期列をunfoldsに列挙する
-  // std::unordered_set<PinwheelInstance> unfolds;
-  //unfolds.insert(c); //c自身もunfoldsに含まれる
+  //c自身もunfold'_{theta}(c)に含まれる
   if(modified_density(c, half_theta + 1) < M + rational(1, 2 * half_theta + 2) ) check_sub(c, known_schedules, impossible_schedules, half_theta+1);
   //cの各周期をチェックしていく. nowは現在見ているcの添え字, countはcに含まれていたhalf_thetaの個数, exist_halfはcがhalf_thetaを含んでいるときtrue, そうでなければfalseとする.
   int now=0;
@@ -71,10 +69,8 @@ void check_sub (const PinwheelInstance& c, std::unordered_map<PinwheelInstance, 
       exist_theta_minus_1=true;
       auto d=c;
       d.periods[(int)(d.periods.size())-1]=2*half_theta;
-      // unfolds.insert(d);
       if(modified_density(d, half_theta + 1) < M + rational(1, 2 * half_theta + 2) ) check_sub(d, known_schedules, impossible_schedules, half_theta+1);
       d.periods[(int)(d.periods.size())-1]=2*half_theta+1;
-      // unfolds.insert(d);
       if(modified_density(d, half_theta + 1) < M + rational(1, 2 * half_theta + 2) ) check_sub(d, known_schedules, impossible_schedules, half_theta+1);
   }
   //half_thetaはunfoldによって2つの周期に置き換えられる。そのそれぞれの周期は2*half_thetaまたは2*half_theta+1である。
@@ -89,21 +85,17 @@ void check_sub (const PinwheelInstance& c, std::unordered_map<PinwheelInstance, 
           cc.periods.push_back(2*half_theta);
           cc.periods.push_back(2*half_theta);
           auto d=cc;
-          // unfolds.insert(d);
           if(modified_density(d, half_theta + 1) < M + rational(1, 2 * half_theta + 2) ) check_sub(d, known_schedules, impossible_schedules, half_theta+1);
           for(int i=1;i<=2*count;i++){
               d.periods[(int)(d.periods.size())-i]=2*half_theta+1;
-              // unfolds.insert(d);
               if(modified_density(d, half_theta + 1) < M + rational(1, 2 * half_theta + 2) ) check_sub(d, known_schedules, impossible_schedules, half_theta+1);
           }
           if(exist_theta_minus_1){
               auto e=cc;
               e.periods[(int)(e.periods.size())-2*count-1]=2*half_theta;
-              // unfolds.insert(e);
               if(modified_density(e, half_theta + 1) < M + rational(1, 2 * half_theta + 2) ) check_sub(e, known_schedules, impossible_schedules, half_theta+1);
               for(int i=1;i<=2*count+1;i++){
                   e.periods[(int)(e.periods.size())-i]=2*half_theta+1;
-                  // unfolds.insert(e);
                   if(modified_density(e, half_theta + 1) < M + rational(1, 2 * half_theta + 2) ) check_sub(e, known_schedules, impossible_schedules, half_theta+1);
               }
           }
@@ -115,35 +107,9 @@ void check_sub (const PinwheelInstance& c, std::unordered_map<PinwheelInstance, 
           break;
       }
   }
-
-  // //次に, unfoldsの周期列を, 密度条件を満すもののみに絞り込む
-  // std::vector<PinwheelInstance> sorted_list;
-  // for(auto c_next:unfolds){
-  //   if(detail){
-  //     std::cout << "->" << c_next.to_string() << "\n";
-  //     std::cout << "density:" << modified_density(c_next, half_theta + 2) << ", bound:" << M+rational(1,2*half_theta+2) << ", dist:" << M+rational(1,2*half_theta+2)-modified_density(c_next, half_theta + 2) << "\n";
-  //   }
-  //   if(modified_density(c_next, half_theta + 1) < M + rational(1, 2 * half_theta + 2) ){
-  //     sorted_list.push_back(c_next);
-  //   }
-  // }
-  // std::sort(sorted_list.begin(), sorted_list.end(),
-  // [](auto const& A, auto const& B){
-  //     if(A.periods.size()!=B.periods.size())
-  //         return A.periods.size()<B.periods.size();
-  //     return A.periods < B.periods;
-  // });
-
-  // //sorted_listにはunfold(c)の全ての周期列が含まれており, これらを調査する
-  // if(unfold_case_count){
-  //   std::cout << (int)(sorted_list.size()) << " cases\n";
-  // }
-  // for(auto c_next:sorted_list){
-  //   check_sub(c_next, known_schedules, impossible_schedules, half_theta+1);
-  // }
 }
 
-// check_all(c, known_schedules, impossible_schedules): 写像 known_schedules に書かれているのは、既知の周期列と正しい日割の組であるとする。このとき、周期列 c の末尾に max_period 以下の周期を一つ以上付け加えてできる周期列 d であって modified_density(d, half_theta) ＜ bound_on_modified_density なるものすべてについて、詰込割当可能性を確かめ、その根拠となる周期列と日割の組を known_schedules に記入する。もし割当不能なら impossible_schedules に追加する。
+// check_all(c, known_schedules, impossible_schedules): 写像 known_schedules に書かれているのは、既知の周期列と正しい日割の組であるとする。また、impossible_schedules は、既知の割当不能な周期列全体の集合とする。このとき、はじめに周期列 c に対して割当可能性を調べ、次に周期列 c の末尾に 2*min_half_theta-1 以下の周期を一つ以上付け加えてできる周期列 d であって min_half_theta に対する密度の条件を満すものすべてについて割当可能性を調べる。
 void check_all (const PinwheelInstance& c, std::unordered_map<PinwheelInstance, Schedule>& known_schedules, std::unordered_set<PinwheelInstance>& impossible_schedules) {
   //ここにcriticalに相当する処理を入れる可能性がある
 

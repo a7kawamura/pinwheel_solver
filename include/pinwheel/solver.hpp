@@ -20,9 +20,10 @@ struct SolveResult {
   Schedule schedule;
 };
 
-// find_cycle_sub(v, dead, visited, path, done): 
+// find_cycle_sub(v, dead, visited, path, done, skipped, skip): 
 // 実行開始時における約束として、dead に属するどの状態からも閉路に到達不能であり、visited は初期状態から v への経路（但し初期状態から i 番目の状態を i へ写す写像として表す）、path はそれに対応する（有限の）日割である。
 // v から閉路に到達可能であるとき、その閉路を返す。さもなくば、v から到達可能な状態をすべて dead に加えた上で、Unschedulable() を返す。但し計算中に done が真になったことに気づくと中断して Interrupted() を返す。
+// skipがtrueである場合, dead に含まれる状態数が一定数を超えた時点で skipped を true へ変更して Interrupted() を返す。
 template <typename Policy>
 CycleResult find_cycle_sub (
     const State& v, 
@@ -58,14 +59,15 @@ CycleResult find_cycle_sub (
   }
   dead.insert(v);
   visited.erase(v);
-  if(skip && (int)(dead.size())>0){
+  if(skip && (int)(dead.size())>10){
       skipped.store(true);
       return Interrupted();
   }
   return Unschedulable();
 }
 
-// find_cycle(c, done): 状態グラフ上の閉路検出の方法により、周期列 c の割当可能性を判定する。割当可能なら日割の一つを返し、不能なら Unschedulable() を返す。計算中に done が真になると中断して Interrupted() を返す。
+// find_cycle(c, done, skipped, skip): 状態グラフ上の閉路検出の方法により、周期列 c の割当可能性を判定する。割当可能なら日割の一つを返し、不能なら Unschedulable() を返す。計算中に done が真になると中断して Interrupted() を返す。
+// skip が true の場合, dead に含まれる状態数が一定数を超えた時点で skipped を true へ変更して Interrupted() を返す。
 template <typename Policy>
 CycleResult find_cycle (const PinwheelInstance& c, std::atomic<bool>& done, std::atomic<bool>& skipped, bool skip = false) {
   std::unordered_set<State> dead{};
@@ -75,7 +77,8 @@ CycleResult find_cycle (const PinwheelInstance& c, std::atomic<bool>& done, std:
   return find_cycle_sub<Policy>(initial_state, dead, visited, path, done, skipped, skip);
 }
 
-// solve_instances(cs): cs の各周期列の割当可能性を並列に調べる。割当可能なものが一つでも見つかったらその周期列と日割の組を返す。見つからなければstd::nulloptを返す。
+// solve_instances(cs, skipped, skip): cs の各周期列の割当可能性を並列に調べる。割当可能なものが一つでも見つかったらその周期列と日割の組を返す。見つからなければstd::nulloptを返す。
+// skip が true の場合, 探索を途中で打ち切った周期列が存在すれば skipped を true に変更した上で std::nullopt を返す。
 // #pragma omp parallel for を使用し、利用可能な最大スレッド数を活かしながら、各スレッドへ動的に周期列の探索タスクを割り振る。
 template <typename Policy>
 std::optional<SolveResult> solve_instances (const std::vector<PinwheelInstance>& cs, std::atomic<bool>& skipped, bool skip = false) {
@@ -118,7 +121,9 @@ std::vector<PinwheelInstance> all_folds (const PinwheelInstance& c) {
 
 #pragma GCC diagnostic pop
 
-// find_and_cache(c, known_schedules): 写像 known_schedules に書かれているのは、既知の周期列と正しい日割の組であるとする。このとき、周期列 c は割当可能か調べ、真偽を返す。これを all_folds(c) の各周期列の割当可能性を並列に調べることで行う。まず known_schedules から直ちに判るか調べる。判らなければ、solve_instances を呼んで調べる。割当可能なら、割当できた周期列とその日割とを表示し、known_schedules に記入する。割当不能なら UNSCHEDULABLE と表示する。
+// find_and_cache(c, known_schedules, impossible_schedules, fac_log, skip): 写像 known_schedules に書かれているのは、既知の周期列と正しい日割の組であるとする。このとき、周期列 c は割当可能か調べ、真偽を返す。これを all_folds(c) の各周期列の割当可能性を並列に調べることで行う。まず known_schedules から直ちに判るか調べる。判らなければ、solve_instances を呼んで調べる。割当可能なら、割当できた周期列とその日割とを表示し、known_schedules に記入する。割当不能なら UNSCHEDULABLE と表示する。
+// 引数に impossible_schedules が指定されている場合、割当不能な周期列を impossible_schedules に記入する。
+// fac_log は出力の有無を表すbool値、skip は探索打ち切りの有無を表すbool値。
 template <typename Policy>
 bool find_and_cache (const PinwheelInstance& c, std::unordered_map<PinwheelInstance, Schedule>& known_schedules, std::unordered_set<PinwheelInstance>* impossible_schedules = nullptr, bool fac_log = true, bool skip = false) {
   if(impossible_schedules != nullptr){  
