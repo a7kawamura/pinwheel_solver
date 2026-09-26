@@ -38,10 +38,8 @@ CMake を使ってビルドします。並列処理のために OpenMP を、一
 ### 手順
 
 ```bash
-mkdir build
-cd build
-cmake ..
-make -j
+cmake -S . -B build
+cmake --build build --parallel
 ```
 
 #### 💡 **Mac環境での注意点 (OpenMPエラーが出る場合)**
