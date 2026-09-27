@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.20)
 project(PinwheelSolver LANGUAGES CXX)
 
+include(CTest)
+
 # 何も指定されなかった場合は、自動的に Release モード（-O3最適化）にする
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
@@ -35,3 +37,9 @@ target_link_libraries(verify_packing_lemma PRIVATE OpenMP::OpenMP_CXX Boost::boo
 
 add_executable(verify_covering_lemma apps/verify_covering_lemma.cpp)
 target_link_libraries(verify_covering_lemma PRIVATE OpenMP::OpenMP_CXX Boost::boost)
+
+if(BUILD_TESTING)
+  add_executable(packing_solver_test tests/packing_solver_test.cpp)
+  target_link_libraries(packing_solver_test PRIVATE OpenMP::OpenMP_CXX Boost::boost)
+  add_test(NAME packing_solver_test COMMAND packing_solver_test)
+endif()
