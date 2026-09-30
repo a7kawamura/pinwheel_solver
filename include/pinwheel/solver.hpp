@@ -33,24 +33,22 @@ CycleResult find_cycle_sub (
 {
   if (visited.contains(v)) return Schedule(path.periods.begin() + visited[v], path.periods.end()); // path のうち第 visited[v] 位置以降を出力
   visited[v] = path.periods.size();
-  
+
+  const auto transition_info = Policy::transition_info(v);
   for (size_t j = 0; j < v.q.size(); ++j) {
-    if (not Policy::is_executable(v, j)) {
+    if (not Policy::can_transition(v, j, transition_info)) {
       if (Policy::should_break_loop(v, j)) break;
       continue;
     }
-    
-    auto ww = Policy::next_state(v, j);
-    if (not ww) continue;
-    
-    State w = ww.value();
+
+    State w = Policy::next_state(v, j);
     if (dead.contains(w)) continue;
     if (done) return Interrupted();
-    
+
     path.periods.push_back(v.q[j].second);
     CycleResult r = find_cycle_sub<Policy>(w, dead, visited, path, done);
     path.periods.pop_back();
-    
+
     if (std::holds_alternative<Schedule>(r) or std::holds_alternative<Interrupted>(r)) return r; // w から到達可能な閉路が見つかった場合はその閉路を（v から到達可能な閉路として）返すし、計算中断ならば中断と返す
   }
   dead.insert(v);
