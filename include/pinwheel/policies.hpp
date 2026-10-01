@@ -5,6 +5,11 @@
 namespace pinwheel {
 
 struct PackingPolicy {
+  // 詰込型では、状態 v が詰んでいるとは、ある添字 j について v.q[j].first < j となること。
+  // 詰んでいない状態では v.q[j].first >= j であり、等号となる仕事を余裕ナシと呼ぶ。
+  // この状態 v で第 j の仕事を行った後に詰まないためには、選んだ仕事より前には余裕ナシ仕事がなく、
+  // かつその仕事を再挿入した位置より後ろにも余裕ナシ仕事がなかったことが必要。
+  // 以下では最初と最後の余裕ナシ仕事の添字を一度求め（transition_info）、これらの条件を判定する（can_transition）。
   struct TransitionInfo {
     size_t first_tight;
     size_t last_tight;
@@ -18,17 +23,17 @@ struct PackingPolicy {
 
   static TransitionInfo transition_info(const State& v) {
     TransitionInfo info{v.q.size(), 0};
-    for (size_t i = 0; i < v.q.size(); ++i) {
-      if (v.q[i].first == i) {
-        if (info.first_tight == v.q.size()) info.first_tight = i;
-        info.last_tight = i;
+    for (size_t j = 0; j < v.q.size(); ++j) {
+      if (v.q[j].first == j) {
+        if (info.first_tight == v.q.size()) info.first_tight = j;
+        info.last_tight = j;
       }
     }
-    return info;
+    return info; // 余裕ナシ仕事がない場合、first_tight は v.q.size()、last_tight は 0 とする。
   }
 
   static bool can_transition(const State& v, size_t j, const TransitionInfo& info) {
-    return j <= info.first_tight && v.q[j].second > info.last_tight;
+    return j <= info.first_tight && v.q[j].second > info.last_tight; // j が最初の余裕ナシ仕事より前であり、かつその仕事を再挿入する位置が最後の余裕ナシ仕事より後であること
   }
 
   // w = next_state(v, j0): 状態 v であった日に第 j0 番目（v において）の仕事を行うと、次の日は状態 w になる。
