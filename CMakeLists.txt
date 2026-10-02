@@ -12,34 +12,40 @@ endif()
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# コンパイラの警告レベルを最大(Wall, Wextra)にし、さらに警告を致命的エラー(Werror)に格上げする
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-    add_compile_options(-Wall -Wextra -Werror)
-endif()
-
 # 外部ライブラリ（OpenMP, Boost）の自動検出
 find_package(OpenMP REQUIRED)
 find_package(Boost REQUIRED)
 
-# ヘッダーファイルの検索パス（include ディレクトリ）を指定
-include_directories(include)
+function(configure_pinwheel_target target_name)
+  target_include_directories(${target_name} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include")
+
+  # GCC/Clangでは警告を有効にし、警告をエラーとして扱う
+  if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    target_compile_options(${target_name} PRIVATE -Wall -Wextra -Werror)
+  endif()
+endfunction()
 
 # 1. 対話型ソルバー
 add_executable(packing_solver apps/packing_solver.cpp)
+configure_pinwheel_target(packing_solver)
 target_link_libraries(packing_solver PRIVATE OpenMP::OpenMP_CXX Boost::boost)
 
 add_executable(covering_solver apps/covering_solver.cpp)
+configure_pinwheel_target(covering_solver)
 target_link_libraries(covering_solver PRIVATE OpenMP::OpenMP_CXX Boost::boost)
 
 # 2. 補題検証プログラム
 add_executable(verify_packing_lemma apps/verify_packing_lemma.cpp)
+configure_pinwheel_target(verify_packing_lemma)
 target_link_libraries(verify_packing_lemma PRIVATE OpenMP::OpenMP_CXX Boost::boost)
 
 add_executable(verify_covering_lemma apps/verify_covering_lemma.cpp)
+configure_pinwheel_target(verify_covering_lemma)
 target_link_libraries(verify_covering_lemma PRIVATE OpenMP::OpenMP_CXX Boost::boost)
 
 if(BUILD_TESTING)
   add_executable(packing_solver_test tests/packing_solver_test.cpp)
+  configure_pinwheel_target(packing_solver_test)
   target_link_libraries(packing_solver_test PRIVATE OpenMP::OpenMP_CXX Boost::boost)
   add_test(NAME packing_solver_test COMMAND packing_solver_test)
 endif()
